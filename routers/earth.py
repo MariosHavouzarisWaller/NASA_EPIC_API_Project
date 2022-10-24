@@ -1,30 +1,34 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter
 from requests.auth import HTTPBasicAuth
 import requests as requests
-from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
 
 from EPICInfo import EarthInfo
 from distanceCalculator import distance
 
+# This sets up the router that will allow us to view the json data
 router = APIRouter(prefix="/api/earth")
-templates = Jinja2Templates(directory="templates")
 
+# This provides us access to the NASA EPIC satellite database and API
 auth = HTTPBasicAuth('apikey', '2E3gS1S09YEfmSbU3VrjJzKxOL9ogRkQjv82I7cm')
-response = requests.get("https://epic.gsfc.nasa.gov/api/natural/date/2022-10-10", auth=auth)
+response = requests.get("https://epic.gsfc.nasa.gov/api/natural/date/2022-10-04", auth=auth)
 
+# Error Handling
 class BadDateException(Exception):
     pass
 
-@router.get("/", response_class=HTMLResponse)
-async def get_earth(request: Request, date: str|None = None):
+# Get request for the information stored in the NASA database 
+@router.get("/jsoninfo")
+def get_earth(date: str|None = None):
+    print("I'm being run")  # Used for testing/debugging
     earthCoordsX = 0
     earthCoordsY = 0
     earthCoordsZ = 0
 
     objList = list()
 
+    # Fills up list
     for item in response.json():
+        _id = item['identifier']
         _image = item['image']
         _date = item['date']
         satCoordsX = item['dscovr_j2000_position']['x']
@@ -36,7 +40,7 @@ async def get_earth(request: Request, date: str|None = None):
         earthSatDist = distance(earthCoordsX, earthCoordsY, earthCoordsZ, satCoordsX, satCoordsY, satCoordsZ)
         sunSatDist = distance(sunCoordsX, sunCoordsY, sunCoordsZ, satCoordsX, satCoordsY, satCoordsZ)
         sunEarthDist = distance(sunCoordsX, sunCoordsY, sunCoordsZ, earthCoordsX, earthCoordsY, earthCoordsZ)
-        earthObj = EarthInfo(_image, _date, earthSatDist, sunSatDist, sunEarthDist)
+        earthObj = EarthInfo(_id, _image, _date, earthSatDist, sunSatDist, sunEarthDist)
         objList.append(earthObj)
-
-    return templates.TemplateResponse("home.html", {"request": request, "objList": objList})
+    print(objList[0]) # Used for testing/debugging
+    return objList
